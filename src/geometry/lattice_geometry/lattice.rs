@@ -50,7 +50,15 @@ impl Lattice {
     }
 
     pub fn montecarlo_sweep(&mut self) {
-        self.sites.par_iter_mut().for_each(|site| {
+
+        // Monte Carlo sweep for the chessboard sites
+        self.sites.par_iter_mut().filter(|site| site.chessboard).for_each(|site| {
+            let mut rng = rand::rng();
+            site.montecarlo_single_site(&self.settings, &mut rng);
+        });
+
+        // Monte Carlo sweep for the non-chessboard sites
+        self.sites.par_iter_mut().filter(|site| !site.chessboard).for_each(|site| {
             let mut rng = rand::rng();
             site.montecarlo_single_site(&self.settings, &mut rng);
         });
