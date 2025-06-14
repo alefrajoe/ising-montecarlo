@@ -2,8 +2,10 @@ use ising_montecarlo::geometry::lattice_geometry::lattice::Lattice;
 use ising_montecarlo::settings::SettingsBuilder;
 use ising_montecarlo::geometry::lattice_geometry::boundary_conditions::BoundaryConditions;
 use ising_montecarlo::field::initialisation::Initialisation;
+use rayon;
 
 fn main() {
+    println!("Number of threads: {}", rayon::current_num_threads());
     let settings = SettingsBuilder { beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Random }.build();
     let mut lattice = Box::new(Lattice::new(settings));
 
