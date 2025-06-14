@@ -1,0 +1,160 @@
+use std::sync::Arc;
+use crate::geometry::site::Site;
+use crate::field::initialisation::Initialisation;
+use crate::settings::{DIMENSIONS, LATTICE_SIZE, Settings, SettingsBuilder};
+use crate::geometry::utils::{next_position, previous_position};
+use crate::geometry::lattice_geometry::boundary_conditions::BoundaryConditions;
+
+pub struct Lattice {
+    sites: [Site; usize::pow(LATTICE_SIZE, DIMENSIONS as u32)],
+    settings: Arc<Settings>,
+}
+
+impl Lattice {
+    pub fn new(settings: Settings) -> Self {
+        // Initialise the lattice sites
+        let sites = std::array::from_fn(|i| Site::new(i, settings.site_initialisation.clone()));
+
+        // Create the Arc references to the sites
+        let site_refs: Vec<Arc<Site>> = sites.iter()
+            .map(|site| Arc::new(site.clone()))
+            .collect();
+
+        // Initialise the lattice with sites but no next or previous sites
+        let mut lattice = Self { sites, settings: Arc::new(settings.clone()) };
+        
+        // Create the lattice according to the boundary conditions
+        match settings.boundary_conditions {
+            BoundaryConditions::Periodic => initalise_periodic_boundary_conditions(&mut lattice, &site_refs),
+            BoundaryConditions::Open => initalise_open_boundary_conditions(&mut lattice, &site_refs),
+        }
+
+        lattice
+    }
+
+    pub fn get(&self, position: usize) -> &Site {
+        &self.sites[position]
+    }
+
+    pub fn get_mut(&mut self, position: usize) -> &mut Site {
+        &mut self.sites[position]
+    }
+}
+
+fn initalise_periodic_boundary_conditions(lattice: &mut Lattice, site_refs: &[Arc<Site>]) {
+    for i in 0..lattice.sites.len() {
+        for d in 0..DIMENSIONS {
+
+            // Next site
+            let next_pos = next_position(i, d);
+            lattice.get_mut(i).update_next(d, Some(site_refs[next_pos].clone()));
+            
+            // Previous site
+            let prev_pos = previous_position(i, d);
+            lattice.get_mut(i).update_previous(d, Some(site_refs[prev_pos].clone()));
+        }
+    }
+}
+
+fn initalise_open_boundary_conditions(lattice: &mut Lattice, site_refs: &[Arc<Site>]) {
+    for i in 0..lattice.sites.len() {
+        for d in 0..DIMENSIONS {
+
+            // Next site
+            let next_pos = next_position(i, d);
+            
+            // If position at the boundary of the lattice, set the next site to None
+            if next_pos < i {
+                lattice.get_mut(i).update_next(d, None);
+            } else {
+                lattice.get_mut(i).update_next(d, Some(site_refs[next_pos].clone()));
+            }
+            
+            // Previous site
+            let prev_pos = previous_position(i, d);
+            
+            // If position at the boundary of the lattice, set the previous site to None
+            if prev_pos > i {
+                lattice.get_mut(i).update_previous(d, None);
+            } else {
+                lattice.get_mut(i).update_previous(d, Some(site_refs[prev_pos].clone()));
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::field::ising::IsingField;
+
+    #[test]
+    fn test_lattice_new() {
+        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let lattice = Lattice::new(settings);
+        assert_eq!(lattice.sites.len(), usize::pow(LATTICE_SIZE, DIMENSIONS as u32));
+
+        for (i, site) in lattice.sites.iter().enumerate() {
+            assert_eq!(site.position, i);
+            assert_eq!(*site.field.read().unwrap(), IsingField::Up);
+        }
+    }
+
+    #[test]
+    fn test_lattice_get() {
+        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let lattice = Lattice::new(settings);
+        for i in 0..lattice.sites.len() {
+            let site = lattice.get(i);
+            assert_eq!(site.position, i);
+            assert_eq!(*site.field.read().unwrap(), IsingField::Up);
+        }
+    }
+
+    #[test]
+    fn test_lattice_get_mut() {
+        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let mut lattice = Lattice::new(settings);
+        for i in 0..lattice.sites.len() {
+            let site = lattice.get_mut(i);
+            site.flip();
+        }
+    }
+
+    #[test]
+    fn test_lattice_geometry() {
+        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let lattice = Lattice::new(settings);
+        assert_eq!(lattice.get(0).next[0].as_ref().unwrap().position, 1);
+        assert_eq!(lattice.get(63).next[0].as_ref().unwrap().position, 0);
+        assert_eq!(lattice.get(63).next[0].as_ref().unwrap(), lattice.get(0));
+
+        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Open, site_initialisation: Initialisation::Uniform }.build();
+        let lattice = Lattice::new(settings);
+        assert_eq!(lattice.get(0).next[0].as_ref().unwrap().position, 1);
+        assert_eq!(lattice.get(63).next[0].is_none(), true);
+        assert_eq!(lattice.get(0).previous[0].is_none(), true);
+    }
+
+    #[test]
+    fn test_lattice_local_energy() {
+        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let lattice = Lattice::new(settings);
+        let mut energy = 0.0;
+        for i in 0..lattice.sites.len() {
+            let site = lattice.get(i);
+            energy += site.local_energy();
+        }
+        assert_eq!(energy, 384.0);
+
+
+        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Open, site_initialisation: Initialisation::Uniform }.build();
+        let lattice = Lattice::new(settings);
+        let mut energy = 0.0;
+        for i in 0..lattice.sites.len() {
+            let site = lattice.get(i);
+            energy += site.local_energy();
+        }
+        assert_eq!(energy, 342.0);
+    }
+}

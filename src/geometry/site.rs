@@ -2,6 +2,7 @@ use crate::field::ising::IsingField;
 use crate::field::initialisation::Initialisation;
 use crate::settings::DIMENSIONS;
 use std::sync::{Arc, RwLock};
+use crate::field::schema::Field;
 
 #[derive(Debug)]
 pub struct Site {
@@ -33,12 +34,12 @@ impl Site {
         }
     }
 
-    pub fn update_next(&mut self, dimension: usize, site: Arc<Site>) {
-        self.next[dimension] = Some(site);
+    pub fn update_next(&mut self, dimension: usize, site: Option<Arc<Site>>) {
+        self.next[dimension] = site;
     }
 
-    pub fn update_previous(&mut self, dimension: usize, site: Arc<Site>) {
-        self.previous[dimension] = Some(site);
+    pub fn update_previous(&mut self, dimension: usize, site: Option<Arc<Site>>) {
+        self.previous[dimension] = site;
     }
 
     pub fn flip(&self) {
@@ -47,6 +48,33 @@ impl Site {
             IsingField::Down => IsingField::Up,
         };
         *self.field.write().unwrap() = flipped;
+    }
+
+    pub fn local_energy(&self) -> f64 {
+        
+        // Initialise the energy to zero
+        let mut energy = 0.0;
+
+        // Add the energy of the next site
+        for next in self.next.iter() {
+            if let Some(next_site) = next {
+                let current_field = *self.field.read().unwrap();
+                let next_field = *next_site.field.read().unwrap();
+                energy += current_field.interaction(&next_field);
+            }
+        }
+
+        // Add the energy of the previous site
+        for previous in self.previous.iter() {
+            if let Some(previous_site) = previous {
+                let current_field = *self.field.read().unwrap();
+                let previous_field = *previous_site.field.read().unwrap();
+                energy += current_field.interaction(&previous_field);
+            }
+        }
+
+        // Return the energy
+        energy
     }
 }
 
@@ -87,5 +115,13 @@ mod tests {
         let site = Site::new(position, initialisation.clone());
         site.flip();
         assert_eq!(*site.field.read().unwrap(), IsingField::Down);
+    }
+
+    #[test]
+    fn test_site_local_energy() {
+        let position = 0;
+        let initialisation = Initialisation::Uniform;
+        let site = Site::new(position, initialisation.clone());
+        assert_eq!(site.local_energy(), 0.0);
     }
 }   
