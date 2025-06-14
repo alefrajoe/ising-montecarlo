@@ -1,8 +1,9 @@
 use crate::field::ising::IsingField;
 use crate::field::initialisation::Initialisation;
-use crate::settings::DIMENSIONS;
+use crate::settings::{DIMENSIONS, Settings};
 use std::sync::{Arc, RwLock};
 use crate::field::schema::Field;
+use rand::Rng;
 
 #[derive(Debug)]
 pub struct Site {
@@ -56,25 +57,57 @@ impl Site {
         let mut energy = 0.0;
 
         // Add the energy of the next site
-        for next in self.next.iter() {
-            if let Some(next_site) = next {
-                let current_field = *self.field.read().unwrap();
-                let next_field = *next_site.field.read().unwrap();
-                energy += current_field.interaction(&next_field);
-            }
+        for next in self.next.iter().flatten() {
+            let current_field = *self.field.read().unwrap();
+            let next_field = *next.field.read().unwrap();
+            energy += current_field.interaction(&next_field);
         }
 
         // Add the energy of the previous site
-        for previous in self.previous.iter() {
-            if let Some(previous_site) = previous {
-                let current_field = *self.field.read().unwrap();
-                let previous_field = *previous_site.field.read().unwrap();
-                energy += current_field.interaction(&previous_field);
-            }
+        for previous in self.previous.iter().flatten() {
+            let current_field = *self.field.read().unwrap();
+            let previous_field = *previous.field.read().unwrap();
+            energy += current_field.interaction(&previous_field);
         }
 
         // Return the energy
         energy
+    }
+
+    pub fn montecarlo_single_site(&mut self, settings: &Settings) -> bool {
+        // Compute the local energy of the site
+        let local_energy = self.local_energy();
+
+        // Flip the site
+        self.flip();
+
+        // Compute the local energy of the site
+        let new_local_energy = self.local_energy();
+
+        // Compute the energy ratio
+        let energy_ratio = (- settings.beta * (new_local_energy - local_energy)).exp();
+
+        // Compute the acceptance probability
+        if energy_ratio > 1.0 {
+            // Accept the flip
+            true
+        } else {
+
+            // Sampling step
+            let mut rng = rand::rng();
+            let random_number = rng.random_range(0.0..=1.0);
+            if random_number < energy_ratio {
+                // Accept the flip
+                true
+            } else {
+
+                // Flip the site back
+                self.flip();
+
+                // Reject the flip
+                false
+            }
+        }
     }
 }
 
@@ -96,6 +129,8 @@ impl PartialEq<Site> for Arc<Site> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::settings::{LATTICE_SIZE};
+    use crate::geometry::lattice_geometry::boundary_conditions::BoundaryConditions;
 
     #[test]
     fn test_site_new() {
@@ -124,4 +159,12 @@ mod tests {
         let site = Site::new(position, initialisation.clone());
         assert_eq!(site.local_energy(), 0.0);
     }
+
+    #[test]
+    fn test_site_montecarlo_single_site() {
+        let settings = Settings { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform };
+        let mut site = Site::new(0, Initialisation::Uniform);
+        site.montecarlo_single_site(&settings);
+    }
+
 }   

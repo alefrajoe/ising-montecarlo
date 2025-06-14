@@ -1,10 +1,9 @@
 use std::sync::Arc;
 use crate::geometry::site::Site;
-use crate::settings::{DIMENSIONS, LATTICE_SIZE, Settings};
+use crate::settings::{Settings, DIMENSIONS, LATTICE_SIZE};
 use crate::geometry::utils::{next_position, previous_position};
 use crate::geometry::lattice_geometry::boundary_conditions::BoundaryConditions;
-use crate::settings::SettingsBuilder;
-use crate::field::initialisation::Initialisation;
+use rayon::prelude::*;
 
 pub struct Lattice {
     sites: [Site; usize::pow(LATTICE_SIZE, DIMENSIONS as u32)],
@@ -39,6 +38,12 @@ impl Lattice {
 
     pub fn get_mut(&mut self, position: usize) -> &mut Site {
         &mut self.sites[position]
+    }
+
+    pub fn montecarlo_sweep(&mut self) {
+        self.sites.par_iter_mut().for_each(|site| {
+            site.montecarlo_single_site(&self.settings);
+        });
     }
 }
 
@@ -88,6 +93,9 @@ fn initalise_open_boundary_conditions(lattice: &mut Lattice, site_refs: &[Arc<Si
 mod tests {
     use super::*;
     use crate::field::ising::IsingField;
+    use crate::settings::SettingsBuilder;
+    use crate::field::initialisation::Initialisation;
+    use crate::geometry::lattice_geometry::boundary_conditions::BoundaryConditions;
 
     #[test]
     fn test_lattice_new() {
@@ -157,5 +165,12 @@ mod tests {
             energy += site.local_energy();
         }
         assert_eq!(energy, 342.0);
+    }
+
+    #[test]
+    fn test_lattice_montecarlo_sweep() {
+        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let mut lattice = Lattice::new(settings);
+        lattice.montecarlo_sweep();
     }
 }
