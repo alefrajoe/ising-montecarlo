@@ -11,6 +11,18 @@ pub struct Site {
     pub previous: [Option<Arc<Site>>; DIMENSIONS],
 }
 
+
+impl Clone for Site {
+    fn clone(&self) -> Self {
+        Self {
+            position: self.position,
+            field: RwLock::new(*self.field.read().unwrap()),
+            next: self.next.clone(),
+            previous: self.previous.clone(),
+        }
+    }
+}
+
 impl Site {
     pub fn new(position: usize, initialisation: Initialisation) -> Self {
         Self { 
@@ -19,6 +31,14 @@ impl Site {
             next: [const { None }; DIMENSIONS], 
             previous: [const { None }; DIMENSIONS] 
         }
+    }
+
+    pub fn update_next(&mut self, dimension: usize, site: Arc<Site>) {
+        self.next[dimension] = Some(site);
+    }
+
+    pub fn update_previous(&mut self, dimension: usize, site: Arc<Site>) {
+        self.previous[dimension] = Some(site);
     }
 
     pub fn flip(&self) {
@@ -36,6 +56,12 @@ impl PartialEq for Site {
         *self.field.read().unwrap() == *other.field.read().unwrap() &&
         self.next == other.next &&
         self.previous == other.previous
+    }
+}
+
+impl PartialEq<Site> for Arc<Site> {
+    fn eq(&self, other: &Site) -> bool {
+        self.position == other.position
     }
 }
 

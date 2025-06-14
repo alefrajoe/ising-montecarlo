@@ -1,7 +1,7 @@
 use crate::field::schema::Field;
 use crate::field::initialisation::Initialisation;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IsingField {
     Up,
     Down,
