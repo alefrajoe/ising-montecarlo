@@ -5,10 +5,10 @@ use std::sync::{Arc, RwLock};
 
 #[derive(Debug)]
 pub struct Site {
-    position: usize,
-    field: RwLock<IsingField>,
-    next: [Option<Arc<Site>>; DIMENSIONS],
-    previous: [Option<Arc<Site>>; DIMENSIONS],
+    pub position: usize,
+    pub field: RwLock<IsingField>,
+    pub next: [Option<Arc<Site>>; DIMENSIONS],
+    pub previous: [Option<Arc<Site>>; DIMENSIONS],
 }
 
 impl Site {
@@ -19,6 +19,14 @@ impl Site {
             next: [const { None }; DIMENSIONS], 
             previous: [const { None }; DIMENSIONS] 
         }
+    }
+
+    pub fn flip(&self) {
+        let flipped = match *self.field.read().unwrap() {
+            IsingField::Up => IsingField::Down,
+            IsingField::Down => IsingField::Up,
+        };
+        *self.field.write().unwrap() = flipped;
     }
 }
 
@@ -44,5 +52,14 @@ mod tests {
         assert_eq!(*site.field.read().unwrap(), IsingField::new(initialisation));
         assert_eq!(site.next, [const { None }; DIMENSIONS]);
         assert_eq!(site.previous, [const { None }; DIMENSIONS]);
+    }
+
+    #[test]
+    fn test_site_flip() {
+        let position = 0;
+        let initialisation = Initialisation::Uniform;
+        let site = Site::new(position, initialisation.clone());
+        site.flip();
+        assert_eq!(*site.field.read().unwrap(), IsingField::Down);
     }
 }   
