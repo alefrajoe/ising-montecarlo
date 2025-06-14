@@ -74,7 +74,7 @@ impl Site {
         energy
     }
 
-    pub fn montecarlo_single_site(&mut self, settings: &Settings) -> bool {
+    pub fn montecarlo_single_site<R: Rng>(&mut self, settings: &Settings, rng: &mut R) -> bool {
         // Compute the local energy of the site
         let local_energy = self.local_energy();
 
@@ -89,14 +89,15 @@ impl Site {
 
         // Compute the acceptance probability
         if energy_ratio > 1.0 {
+            //println!("Accepting flip!");
             // Accept the flip
             true
         } else {
 
             // Sampling step
-            let mut rng = rand::rng();
             let random_number = rng.random_range(0.0..=1.0);
             if random_number < energy_ratio {
+                //println!("Accepting flip!");
                 // Accept the flip
                 true
             } else {
@@ -129,7 +130,7 @@ impl PartialEq<Site> for Arc<Site> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::settings::{LATTICE_SIZE};
+    use crate::settings::{SettingsBuilder};
     use crate::geometry::lattice_geometry::boundary_conditions::BoundaryConditions;
 
     #[test]
@@ -162,9 +163,10 @@ mod tests {
 
     #[test]
     fn test_site_montecarlo_single_site() {
-        let settings = Settings { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform };
+        let settings = SettingsBuilder { beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
         let mut site = Site::new(0, Initialisation::Uniform);
-        site.montecarlo_single_site(&settings);
+        let mut rng = rand::rng();
+        site.montecarlo_single_site(&settings, &mut rng);
     }
 
 }   

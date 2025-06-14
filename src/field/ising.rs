@@ -28,12 +28,12 @@ impl Field<IsingField> for IsingField {
     fn interaction(&self, site: &IsingField) -> f64 {
         match self {
             IsingField::Up => match site {
-                IsingField::Up => 1.0,
-                IsingField::Down => -1.0,
-            },
-            IsingField::Down => match site {
                 IsingField::Up => -1.0,
                 IsingField::Down => 1.0,
+            },
+            IsingField::Down => match site {
+                IsingField::Up => 1.0,
+                IsingField::Down => -1.0,
             },
         }
     }
@@ -47,10 +47,10 @@ mod tests {
     fn test_ising_field_interaction() {
         let up = IsingField::Up;
         let down = IsingField::Down;
-        assert_eq!(up.interaction(&up), 1.0);
-        assert_eq!(up.interaction(&down), -1.0);
-        assert_eq!(down.interaction(&up), -1.0);
-        assert_eq!(down.interaction(&down), 1.0);
+        assert_eq!(up.interaction(&up), -1.0);
+        assert_eq!(up.interaction(&down), 1.0);
+        assert_eq!(down.interaction(&up), 1.0);
+        assert_eq!(down.interaction(&down), -1.0);
     }
 
     #[test]

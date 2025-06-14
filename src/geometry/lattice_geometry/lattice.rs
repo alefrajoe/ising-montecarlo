@@ -6,22 +6,27 @@ use crate::geometry::lattice_geometry::boundary_conditions::BoundaryConditions;
 use rayon::prelude::*;
 
 pub struct Lattice {
-    sites: [Site; usize::pow(LATTICE_SIZE, DIMENSIONS as u32)],
-    settings: Arc<Settings>,
+    sites: Vec<Site>,
+    pub settings: Arc<Settings>,
 }
 
 impl Lattice {
     pub fn new(settings: Settings) -> Self {
-        // Initialise the lattice sites
-        let sites = std::array::from_fn(|i| Site::new(i, settings.site_initialisation));
+        // Initialise the lattice sites using Vec instead of array
+        let sites: Vec<Site> = (0..usize::pow(LATTICE_SIZE, DIMENSIONS as u32))
+            .map(|i| Site::new(i, settings.site_initialisation))
+            .collect();
 
         // Create the Arc references to the sites
         let site_refs: Vec<Arc<Site>> = sites.iter()
             .map(|site| Arc::new(site.clone()))
             .collect();
 
-        // Initialise the lattice with sites but no next or previous sites
-        let mut lattice = Self { sites, settings: Arc::new(settings.clone()) };
+        // Create the lattice with the original sites
+        let mut lattice = Self { 
+            sites,
+            settings: Arc::new(settings.clone()) 
+        };
         
         // Create the lattice according to the boundary conditions
         match settings.boundary_conditions {
@@ -40,9 +45,14 @@ impl Lattice {
         &mut self.sites[position]
     }
 
+    pub fn get_energy(&self) -> f64 {
+        self.sites.par_iter().map(|site| site.local_energy()).sum::<f64>() / 2.0 // Divide by 2 because each interaction is counted twice
+    }
+
     pub fn montecarlo_sweep(&mut self) {
         self.sites.par_iter_mut().for_each(|site| {
-            site.montecarlo_single_site(&self.settings);
+            let mut rng = rand::rng();
+            site.montecarlo_single_site(&self.settings, &mut rng);
         });
     }
 }
@@ -122,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_lattice_get_mut() {
-        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let settings = SettingsBuilder { beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
         let mut lattice = Lattice::new(settings);
         for i in 0..lattice.sites.len() {
             let site = lattice.get_mut(i);
@@ -132,13 +142,13 @@ mod tests {
 
     #[test]
     fn test_lattice_geometry() {
-        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let settings = SettingsBuilder { beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
         let lattice = Lattice::new(settings);
         assert_eq!(lattice.get(0).next[0].as_ref().unwrap().position, 1);
         assert_eq!(lattice.get(63).next[0].as_ref().unwrap().position, 0);
         assert_eq!(lattice.get(63).next[0].as_ref().unwrap(), lattice.get(0));
 
-        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Open, site_initialisation: Initialisation::Uniform }.build();
+        let settings = SettingsBuilder { beta: 1.0, boundary_conditions: BoundaryConditions::Open, site_initialisation: Initialisation::Uniform }.build();
         let lattice = Lattice::new(settings);
         assert_eq!(lattice.get(0).next[0].as_ref().unwrap().position, 1);
         assert_eq!(lattice.get(63).next[0].is_none(), true);
@@ -147,29 +157,29 @@ mod tests {
 
     #[test]
     fn test_lattice_local_energy() {
-        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let settings = SettingsBuilder { beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
         let lattice = Lattice::new(settings);
         let mut energy = 0.0;
         for i in 0..lattice.sites.len() {
             let site = lattice.get(i);
             energy += site.local_energy();
         }
-        assert_eq!(energy, 384.0);
+        assert_eq!(energy, -384.0);
 
 
-        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Open, site_initialisation: Initialisation::Uniform }.build();
+        let settings = SettingsBuilder { beta: 1.0, boundary_conditions: BoundaryConditions::Open, site_initialisation: Initialisation::Uniform }.build();
         let lattice = Lattice::new(settings);
         let mut energy = 0.0;
         for i in 0..lattice.sites.len() {
             let site = lattice.get(i);
             energy += site.local_energy();
         }
-        assert_eq!(energy, 342.0);
+        assert_eq!(energy, -342.0);
     }
 
     #[test]
     fn test_lattice_montecarlo_sweep() {
-        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let settings = SettingsBuilder { beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
         let mut lattice = Lattice::new(settings);
         lattice.montecarlo_sweep();
     }
