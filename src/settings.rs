@@ -31,25 +31,31 @@ pub struct SettingsBuilder {
     pub site_initialisation: Initialisation,
 }
 
+impl Default for SettingsBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SettingsBuilder {
 
     pub fn new() -> SettingsBuilder {
         Self { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 0.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }
     }
 
-    fn add_beta(&mut self, beta: f64) -> SettingsBuilder {
+    pub fn add_beta(&mut self, beta: f64) -> SettingsBuilder {
         self.beta = beta;
-        Self { dimensions: self.dimensions, lattice_size: self.lattice_size, beta: beta, boundary_conditions: self.boundary_conditions, site_initialisation: self.site_initialisation }
+        Self { dimensions: self.dimensions, lattice_size: self.lattice_size, beta, boundary_conditions: self.boundary_conditions, site_initialisation: self.site_initialisation }
     }
 
-    fn add_boundary_conditions(&mut self, boundary_conditions: BoundaryConditions) -> SettingsBuilder {
+    pub fn add_boundary_conditions(&mut self, boundary_conditions: BoundaryConditions) -> SettingsBuilder {
         self.boundary_conditions = boundary_conditions;
-        Self { dimensions: self.dimensions, lattice_size: self.lattice_size, beta: self.beta, boundary_conditions: boundary_conditions, site_initialisation: self.site_initialisation }
+        Self { dimensions: self.dimensions, lattice_size: self.lattice_size, beta: self.beta, boundary_conditions, site_initialisation: self.site_initialisation }
     }
 
-    fn add_site_initialisation(&mut self, site_initialisation: Initialisation) -> SettingsBuilder {
+    pub fn add_site_initialisation(&mut self, site_initialisation: Initialisation) -> SettingsBuilder {
         self.site_initialisation = site_initialisation;
-        Self { dimensions: self.dimensions, lattice_size: self.lattice_size, beta: self.beta, boundary_conditions: self.boundary_conditions, site_initialisation: site_initialisation }
+        Self { dimensions: self.dimensions, lattice_size: self.lattice_size, beta: self.beta, boundary_conditions: self.boundary_conditions, site_initialisation }
     }
 
     pub fn build(self) -> Settings {

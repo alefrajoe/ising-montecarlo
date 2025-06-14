@@ -1,9 +1,10 @@
 use std::sync::Arc;
 use crate::geometry::site::Site;
-use crate::field::initialisation::Initialisation;
-use crate::settings::{DIMENSIONS, LATTICE_SIZE, Settings, SettingsBuilder};
+use crate::settings::{DIMENSIONS, LATTICE_SIZE, Settings};
 use crate::geometry::utils::{next_position, previous_position};
 use crate::geometry::lattice_geometry::boundary_conditions::BoundaryConditions;
+use crate::settings::SettingsBuilder;
+use crate::field::initialisation::Initialisation;
 
 pub struct Lattice {
     sites: [Site; usize::pow(LATTICE_SIZE, DIMENSIONS as u32)],
@@ -13,7 +14,7 @@ pub struct Lattice {
 impl Lattice {
     pub fn new(settings: Settings) -> Self {
         // Initialise the lattice sites
-        let sites = std::array::from_fn(|i| Site::new(i, settings.site_initialisation.clone()));
+        let sites = std::array::from_fn(|i| Site::new(i, settings.site_initialisation));
 
         // Create the Arc references to the sites
         let site_refs: Vec<Arc<Site>> = sites.iter()
@@ -90,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_lattice_new() {
-        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let settings = SettingsBuilder::new().add_beta(1.0).add_boundary_conditions(BoundaryConditions::Periodic).add_site_initialisation(Initialisation::Uniform).build();
         let lattice = Lattice::new(settings);
         assert_eq!(lattice.sites.len(), usize::pow(LATTICE_SIZE, DIMENSIONS as u32));
 
@@ -102,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_lattice_get() {
-        let settings = SettingsBuilder { dimensions: DIMENSIONS, lattice_size: LATTICE_SIZE, beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let settings = SettingsBuilder::new().add_beta(1.0).add_boundary_conditions(BoundaryConditions::Periodic).add_site_initialisation(Initialisation::Uniform).build();
         let lattice = Lattice::new(settings);
         for i in 0..lattice.sites.len() {
             let site = lattice.get(i);
