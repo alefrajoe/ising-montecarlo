@@ -4,7 +4,7 @@ pub const DIMENSIONS: usize = 2;
 pub const DIMENSIONS: usize = 3;  //---TESTS---
 
 #[cfg(not(test))]
-pub const LATTICE_SIZE: usize = 10;
+pub const LATTICE_SIZE: usize = 20;
 #[cfg(test)]
 pub const LATTICE_SIZE: usize = 4;  //---TESTS---
 

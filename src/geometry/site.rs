@@ -11,9 +11,9 @@
     pub struct Site {
         pub id: Uuid,
         pub position: usize,
-        pub field: RwLock<IsingField>,
-        pub next: [Option<Arc<Site>>; DIMENSIONS],
-        pub previous: [Option<Arc<Site>>; DIMENSIONS],
+        pub field: IsingField,
+        pub next: [Option<Arc<RwLock<Site>>>; DIMENSIONS],
+        pub previous: [Option<Arc<RwLock<Site>>>; DIMENSIONS],
         pub lattice_position: [usize; DIMENSIONS],
         pub chessboard: bool,
     }
@@ -24,7 +24,7 @@
             Self {
                 id: Uuid::new_v4(),
                 position: self.position,
-                field: RwLock::new(*self.field.read().unwrap()),
+                field: self.field.clone(),
                 next: self.next.clone(),
                 previous: self.previous.clone(),
                 lattice_position: self.lattice_position,
@@ -38,7 +38,7 @@
             Self { 
                 id: Uuid::new_v4(),
                 position, 
-                field: RwLock::new(IsingField::new(initialisation)), 
+                field: IsingField::new(initialisation), 
                 next: [const { None }; DIMENSIONS], 
                 previous: [const { None }; DIMENSIONS],
                 lattice_position: lattice_position(position),
@@ -46,20 +46,19 @@
             }
         }
 
-        pub fn update_next(&mut self, dimension: usize, site: Option<Arc<Site>>) {
+        pub fn update_next(&mut self, dimension: usize, site: Option<Arc<RwLock<Site>>>) {
             self.next[dimension] = site;
         }
 
-        pub fn update_previous(&mut self, dimension: usize, site: Option<Arc<Site>>) {
+        pub fn update_previous(&mut self, dimension: usize, site: Option<Arc<RwLock<Site>>>) {
             self.previous[dimension] = site;
         }
 
-        pub fn flip(&self) {
-            let flipped = match *self.field.read().unwrap() {
+        pub fn flip(&mut self) {
+            self.field = match self.field {
                 IsingField::Up => IsingField::Down,
                 IsingField::Down => IsingField::Up,
             };
-            *self.field.write().unwrap() = flipped;
         }
 
         pub fn local_energy(&self) -> f64 {
@@ -69,15 +68,15 @@
 
             // Add the energy of the next site
             for next in self.next.iter().flatten() {
-                let current_field = *self.field.read().unwrap();
-                let next_field = *next.field.read().unwrap();
+                let current_field = self.field;
+                let next_field = next.read().unwrap().field;
                 energy += current_field.interaction(&next_field);
             }
 
             // Add the energy of the previous site
             for previous in self.previous.iter().flatten() {
-                let current_field = *self.field.read().unwrap();
-                let previous_field = *previous.field.read().unwrap();
+                let current_field = self.field;
+                let previous_field = previous.read().unwrap().field;
                 energy += current_field.interaction(&previous_field);
             }
 
@@ -85,14 +84,15 @@
             energy
         }
 
-        pub fn montecarlo_single_site<R: Rng>(&mut self, settings: &Settings, rng: &mut R) -> bool {            
-            // Compute the local energy of the site
+        pub fn montecarlo_single_site<R: Rng>(&mut self, settings: &Settings, rng: &mut R) -> bool {  
+
+            // Compute the local energy BEFORE flipping (only read locks)
             let local_energy = self.local_energy();
 
             // Flip the site
             self.flip();
 
-            // Compute the local energy of the site
+            // Compute the local energy after flipping
             let new_local_energy = self.local_energy();
 
             // Compute the energy ratio
@@ -126,9 +126,9 @@
     impl PartialEq for Site {
         fn eq(&self, other: &Self) -> bool {
             self.position == other.position &&
-            *self.field.read().unwrap() == *other.field.read().unwrap() &&
-            self.next == other.next &&
-            self.previous == other.previous
+            self.field == other.field &&
+            self.next.iter().flatten().map(|next| next.read().unwrap().id).collect::<Vec<Uuid>>() == other.next.iter().flatten().map(|next| next.read().unwrap().id).collect::<Vec<Uuid>>() &&
+            self.previous.iter().flatten().map(|previous| previous.read().unwrap().id).collect::<Vec<Uuid>>() == other.previous.iter().flatten().map(|previous| previous.read().unwrap().id).collect::<Vec<Uuid>>()
         }
     }
 
@@ -150,18 +150,16 @@
             let initialisation = Initialisation::Uniform;
             let site = Site::new(position, initialisation.clone());
             assert_eq!(site.position, position);
-            assert_eq!(*site.field.read().unwrap(), IsingField::new(initialisation));
-            assert_eq!(site.next, [const { None }; DIMENSIONS]);
-            assert_eq!(site.previous, [const { None }; DIMENSIONS]);
+            assert_eq!(site.field, IsingField::new(initialisation));
         }
 
         #[test]
         fn test_site_flip() {
             let position = 0;
             let initialisation = Initialisation::Uniform;
-            let site = Site::new(position, initialisation.clone());
+            let mut site = Site::new(position, initialisation.clone());
             site.flip();
-            assert_eq!(*site.field.read().unwrap(), IsingField::Down);
+            assert_eq!(site.field, IsingField::Down);
         }
 
         #[test]
