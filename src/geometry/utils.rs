@@ -1,38 +1,32 @@
 use crate::settings::{DIMENSIONS, LATTICE_SIZE};
 
 pub fn next_position(position: usize, dimension: usize) -> usize {
+    // Convert to lattice position
+    let mut lattice_position = position_to_lattice(position);
 
-    // Take the position passed
-    let mut position = position;
+    // Add 1 to the lattice position in the dimension passed
+    lattice_position[dimension] = (lattice_position[dimension] + 1) % LATTICE_SIZE;
 
-    // Add the lattice size to the position in the dimension passed
-    position += usize::pow(LATTICE_SIZE, dimension as u32);
-    
-    // Return the position modulo the lattice size
-    position % usize::pow(LATTICE_SIZE, DIMENSIONS as u32)
+    // Convert back to position
+    lattice_to_position(lattice_position)
 }
 
 pub fn previous_position(position: usize, dimension: usize) -> usize {
+    // Convert to lattice position
+    let mut lattice_position = position_to_lattice(position);
 
-    // Take the position passed
-    let mut position = position;
+    // Subtract 1 from the lattice position in the dimension passed
+    lattice_position[dimension] = (lattice_position[dimension] + LATTICE_SIZE - 1) % LATTICE_SIZE;
 
-    // Subtract the lattice size from the position in the dimension passed
-    position += usize::pow(LATTICE_SIZE, DIMENSIONS as u32);
-
-    // Subtract the lattice size from the position in the dimension passed
-    position -= usize::pow(LATTICE_SIZE, dimension as u32);
-
-    // Return the position modulo the lattice size
-    position % usize::pow(LATTICE_SIZE, DIMENSIONS as u32)
+    // Convert back to position
+    lattice_to_position(lattice_position)
 }
 
-pub fn lattice_position(position: usize) -> [usize; DIMENSIONS] {
+pub fn position_to_lattice(position: usize) -> [usize; DIMENSIONS] {
     let mut lattice_position = [0; DIMENSIONS];
     let mut position = position;
-    
-    for i in 0..DIMENSIONS {
 
+    for i in 0..DIMENSIONS {
         // Compute the lattice position in the dimension passed
         lattice_position[i] = position % LATTICE_SIZE;
 
@@ -40,6 +34,18 @@ pub fn lattice_position(position: usize) -> [usize; DIMENSIONS] {
         position = position / LATTICE_SIZE;
     }
     lattice_position
+}
+
+pub fn lattice_to_position(lattice_position: [usize; DIMENSIONS]) -> usize {
+    // Initialise the position to 0
+    let mut position = 0;
+
+    // Iterate over the dimensions
+    for i in 0..DIMENSIONS {
+        // Compute the lattice position in the dimension passed
+        position += lattice_position[i] * usize::pow(LATTICE_SIZE, i as u32);
+    }
+    position
 }
 
 pub fn chessboard(lattice_position: [usize; DIMENSIONS]) -> bool {
@@ -54,21 +60,21 @@ mod tests {
     fn test_next_position() {
         assert_eq!(next_position(0, 0), 1);
         assert_eq!(next_position(16, 2), 32);
-        assert_eq!(next_position(31, 1), 35);
+        assert_eq!(next_position(31, 1), 19);
     }
 
     #[test]
     fn test_previous_position() {
-        assert_eq!(previous_position(0, 0), 63);
+        assert_eq!(previous_position(0, 0), 3);
         assert_eq!(previous_position(16, 2), 0);
         assert_eq!(previous_position(31, 1), 27);
     }
 
     #[test]
-    fn test_lattice_position() {
-        assert_eq!(lattice_position(12), [0, 3, 0]);
-        assert_eq!(lattice_position(1), [1, 0, 0]);
-        assert_eq!(lattice_position(32), [0, 0, 2]);
+    fn test_position_to_lattice() {
+        assert_eq!(position_to_lattice(12), [0, 3, 0]);
+        assert_eq!(position_to_lattice(1), [1, 0, 0]);
+        assert_eq!(position_to_lattice(32), [0, 0, 2]);
     }
 
     #[test]

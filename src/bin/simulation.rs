@@ -1,8 +1,8 @@
 use clap::Parser;
+use ising_montecarlo::field::initialisation::Initialisation;
+use ising_montecarlo::geometry::lattice_geometry::boundary_conditions::BoundaryConditions;
 use ising_montecarlo::geometry::lattice_geometry::lattice::Lattice;
 use ising_montecarlo::settings::SettingsBuilder;
-use ising_montecarlo::geometry::lattice_geometry::boundary_conditions::BoundaryConditions;
-use ising_montecarlo::field::initialisation::Initialisation;
 use rayon;
 
 #[derive(Parser)]
@@ -27,22 +27,29 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    
+
     println!("Number of threads: {}", rayon::current_num_threads());
 
     let settings = SettingsBuilder {
         beta: args.beta,
         boundary_conditions: args.boundary,
         site_initialisation: args.init,
-    }.build();
+    }
+    .build();
 
     let mut lattice = Box::new(Lattice::new(settings));
 
     println!("Running simulation...");
     println!("Lattice size: {}", lattice.settings.lattice_size);
     println!("Beta: {}", lattice.settings.beta);
-    println!("Boundary conditions: {:?}", lattice.settings.boundary_conditions);
-    println!("Site initialisation: {:?}", lattice.settings.site_initialisation);
+    println!(
+        "Boundary conditions: {:?}",
+        lattice.settings.boundary_conditions
+    );
+    println!(
+        "Site initialisation: {:?}",
+        lattice.settings.site_initialisation
+    );
     println!("Dimensions: {}", lattice.settings.dimensions);
     println!("Lattice size: {}", lattice.settings.lattice_size);
 

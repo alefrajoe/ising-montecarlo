@@ -1,5 +1,5 @@
-use crate::field::schema::Field;
 use crate::field::initialisation::Initialisation;
+use crate::field::schema::Field;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IsingField {
@@ -17,9 +17,7 @@ impl IsingField {
                     IsingField::Down
                 }
             }
-            Initialisation::Uniform => {
-                IsingField::Up
-            }
+            Initialisation::Uniform => IsingField::Up,
         }
     }
 }
@@ -59,5 +57,5 @@ mod tests {
         let uniform = IsingField::new(Initialisation::Uniform);
         assert!(random == IsingField::Up || random == IsingField::Down);
         assert_eq!(uniform, IsingField::Up);
-    }   
-}   
+    }
+}
