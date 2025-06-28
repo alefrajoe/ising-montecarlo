@@ -186,6 +186,15 @@ mod tests {
     }
 
     #[test]
+    fn test_periodic_boundary_conditions() {
+        let settings = SettingsBuilder { beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
+        let lattice = Lattice::new(settings);
+        assert_eq!(lattice.get(0).next[0].as_ref().unwrap().id, lattice.get(1).id);
+        assert_eq!(lattice.get(63).next[0].as_ref().unwrap().id, lattice.get(0).id);
+        assert_eq!(lattice.get(63).next[0].as_ref().unwrap().id, lattice.get(0).id);
+    }
+
+    #[test]
     fn test_lattice_montecarlo_sweep() {
         let settings = SettingsBuilder { beta: 1.0, boundary_conditions: BoundaryConditions::Periodic, site_initialisation: Initialisation::Uniform }.build();
         let mut lattice = Lattice::new(settings);

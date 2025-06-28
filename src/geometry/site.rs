@@ -5,9 +5,11 @@
     use crate::field::schema::Field;
     use rand::Rng;
     use crate::geometry::utils::{lattice_position, chessboard};
+    use uuid::Uuid;
 
     #[derive(Debug)]
     pub struct Site {
+        pub id: Uuid,
         pub position: usize,
         pub field: RwLock<IsingField>,
         pub next: [Option<Arc<Site>>; DIMENSIONS],
@@ -20,6 +22,7 @@
     impl Clone for Site {
         fn clone(&self) -> Self {
             Self {
+                id: Uuid::new_v4(),
                 position: self.position,
                 field: RwLock::new(*self.field.read().unwrap()),
                 next: self.next.clone(),
@@ -33,6 +36,7 @@
     impl Site {
         pub fn new(position: usize, initialisation: Initialisation) -> Self {
             Self { 
+                id: Uuid::new_v4(),
                 position, 
                 field: RwLock::new(IsingField::new(initialisation)), 
                 next: [const { None }; DIMENSIONS], 
